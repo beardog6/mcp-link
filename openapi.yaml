@@ -88,7 +88,7 @@ components:
         operator:
           type: string
           description: 数学操作符
-          enum: [+, -, *, /]
+          enum: ["+", "-", "*", "/"]
           example: "+"
       description: 计算器请求参数
 
