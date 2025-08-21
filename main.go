@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
@@ -55,11 +56,15 @@ func runServer(host string, port int) error {
 	// Configure the SSE server
 	ss := utils.NewSSEServer()
 
-	// Create HTTP server with CORS middleware
-	corsHandler := corsMiddleware(ss)
+	// 创建路由器来处理多个端点
+	mux := http.NewServeMux()
+	mux.Handle("/sse", corsMiddleware(ss))
+	mux.Handle("/message", corsMiddleware(ss))
+	mux.HandleFunc("/calculator", calculatorHandler)
+	
 	server := &http.Server{
 		Addr:    addr,
-		Handler: corsHandler,
+		Handler: mux,
 	}
 
 	// Channel to listen for interrupt signals
@@ -112,4 +117,86 @@ func corsMiddleware(next http.Handler) http.Handler {
 		// Pass the request to the next handler
 		next.ServeHTTP(w, r)
 	})
+}
+
+// CalculatorRequest 定义计算器请求结构
+type CalculatorRequest struct {
+	Operand1 float64 `json:"operand1"`
+	Operand2 float64 `json:"operand2"`
+	Operator string  `json:"operator"`
+}
+
+// CalculatorResponse 定义计算器响应结构
+type CalculatorResponse struct {
+	Result float64 `json:"result"`
+	Error  string  `json:"error,omitempty"`
+}
+
+// calculatorHandler 处理计算器请求
+func calculatorHandler(w http.ResponseWriter, r *http.Request) {
+	// 只处理POST请求
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	// 设置响应头
+	w.Header().Set("Content-Type", "application/json")
+
+	// 解析请求体
+	var req CalculatorRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(CalculatorResponse{
+			Error: "Invalid request format",
+		})
+		return
+	}
+
+	// 验证操作符
+	validOperators := map[string]bool{
+		"+": true,
+		"-": true,
+		"*": true,
+		"/": true,
+	}
+
+	if !validOperators[req.Operator] {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(CalculatorResponse{
+			Error: "Invalid operator. Use +, -, *, or /",
+		})
+		return
+	}
+
+	// 执行计算
+	var result float64
+
+	switch req.Operator {
+	case "+":
+		result = req.Operand1 + req.Operand2
+	case "-":
+		result = req.Operand1 - req.Operand2
+	case "*":
+		result = req.Operand1 * req.Operand2
+	case "/":
+		if req.Operand2 == 0 {
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(CalculatorResponse{
+				Error: "Division by zero is not allowed",
+			})
+			return
+		}
+		result = req.Operand1 / req.Operand2
+	}
+
+	// 返回结果
+	response := CalculatorResponse{
+		Result: result,
+	}
+
+	w.WriteHeader(http.StatusOK)
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		log.Printf("Error encoding response: %v", err)
+	}
 }
