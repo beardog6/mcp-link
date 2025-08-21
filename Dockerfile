@@ -28,12 +28,13 @@ WORKDIR /root/
 # 从构建阶段复制编译好的二进制文件
 COPY --from=builder /app/mcp-link .
 
-# （可选）如果您的应用需要特定的配置文件或资源，请在此处复制它们
-# 例如：COPY --from=builder /app/assets ./assets
-# 例如：COPY --from=builder /app/examples ./examples
+# 复制必要的配置文件和资源
+COPY --from=builder /app/assets ./assets
+COPY --from=builder /app/examples ./examples
+COPY --from=builder /app/openapi.yaml ./openapi.yaml
 
-# 暴露应用程序的端口（如果需要）
-# EXPOSE 8080
+# 暴露应用程序的端口
+EXPOSE 8080
 
 # 运行应用程序
 CMD ["./mcp-link", "serve", "--port", "8080", "--host", "0.0.0.0"]
