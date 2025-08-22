@@ -24,7 +24,28 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/CalculatorRequest'
+              type: object
+              required:
+                - operand1
+                - operand2
+                - operator
+              properties:
+                operand1:
+                  type: number
+                  format: float
+                  description: 第一个操作数
+                  example: 10
+                operand2:
+                  type: number
+                  format: float
+                  description: 第二个操作数
+                  example: 5
+                operator:
+                  type: string
+                  description: 数学操作符
+                  enum: ["+", "-", "*", "/"]
+                  example: "+"
+              description: 计算器请求参数
             example:
               operand1: 10
               operand2: 5
